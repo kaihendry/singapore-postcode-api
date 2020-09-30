@@ -13,25 +13,25 @@ import (
 	"github.com/tj/go/http/response"
 )
 
-type Building struct {
+type building struct {
 	Latitude  float64 `json:"LATITUDE,string"`
 	Longitude float64 `json:"LONGITUDE,string"`
 	Postcode  string  `json:"POSTAL"`
 }
 
-type Buildings []Building
+type buildings []building
 
-var BS Buildings
+var postcodes buildings
 var views = template.Must(template.ParseGlob("templates/*.html"))
 
 func main() {
 
 	var err error
-	BS, err = loadBuildingJSON("buildings.json")
+	postcodes, err = loadBuildingJSON("buildings.json")
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("Loaded %d buildings", len(BS))
+	log.Printf("Loaded %d buildings", len(postcodes))
 
 	app := mux.NewRouter()
 	app.HandleFunc("/", handleIndex)
@@ -41,17 +41,15 @@ func main() {
 }
 
 func handleIndex(w http.ResponseWriter, r *http.Request) {
-	PostcodesParam, ok := r.URL.Query()["postcode"]
-	if !ok || len(PostcodesParam[0]) != 6 {
+	postcode := r.URL.Query().Get("postcode")
+	if len(postcode) != 6 {
 		views.ExecuteTemplate(w, "index.html", nil)
 		return
 	}
-	postcode := PostcodesParam[0]
 	wantedResponse := r.URL.Query().Get("r")
-	log.Println("Postcode", postcode)
-	log.Println("Wanted Response", wantedResponse)
+	log.Println("Postcode", postcode, "Wanted Response", wantedResponse)
 
-	b := BS.lookupPostcode(postcode)
+	b := postcodes.getLocation(postcode)
 
 	if wantedResponse != "json" {
 		http.Redirect(w, r,
@@ -61,7 +59,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (Buildings Buildings) lookupPostcode(postcode string) (b Building) {
+func (Buildings buildings) getLocation(postcode string) (b building) {
 	for _, b = range Buildings {
 		if postcode == b.Postcode {
 			return b
@@ -71,7 +69,7 @@ func (Buildings Buildings) lookupPostcode(postcode string) (b Building) {
 }
 
 // curl -O https://raw.githubusercontent.com/xkjyeah/singapore-postal-codes/master/buildings.json
-func loadBuildingJSON(jsonfile string) (bs Buildings, err error) {
+func loadBuildingJSON(jsonfile string) (bs buildings, err error) {
 	content, err := ioutil.ReadFile(jsonfile)
 	if err != nil {
 		return
