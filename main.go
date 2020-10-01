@@ -8,75 +8,115 @@ import (
 	"log"
 	"net/http"
 	"os"
-
-	"github.com/gorilla/mux"
-	"github.com/tj/go/http/response"
 )
 
-type building struct {
+func main() {
+	logger := log.New(os.Stderr, "", log.Lshortfile)
+
+	server, err := NewServer(logger, "templates/*.html", "buildings.json")
+	if err != nil {
+		logger.Printf("failed to create server: %v", err)
+		os.Exit(1)
+	}
+
+	err = http.ListenAndServe(":"+os.Getenv("PORT"), server)
+	if err != nil {
+		logger.Printf("failed to start server: %v", err)
+		os.Exit(1)
+	}
+}
+
+type Log interface {
+	Printf(msg string, args ...interface{})
+	Println(args ...interface{})
+}
+
+type Server struct {
+	log       Log
+	views     *template.Template
+	postcodes Buildings
+}
+
+func NewServer(logger Log, templatesPath, postcodesPath string) (*Server, error) {
+	views, err := template.ParseGlob(templatesPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load templates from %q: %w", templatesPath, err)
+	}
+
+	postcodes, err := BuildingsFromFile(postcodesPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load %q: %w", postcodesPath, err)
+	}
+	logger.Printf("Loaded %d buildings", len(postcodes))
+
+	return &Server{
+		log: logger,
+
+		views:     views,
+		postcodes: postcodes,
+	}, nil
+}
+
+func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	postcode := r.URL.Query().Get("postcode")
+	if len(postcode) != 6 {
+		server.views.ExecuteTemplate(w, "index.html", nil)
+		return
+	}
+
+	wantedResponse := r.URL.Query().Get("r")
+	server.log.Println("Postcode", postcode, "Wanted Response", wantedResponse)
+
+	b, ok := server.postcodes.Lookup(postcode)
+	if !ok {
+		// handle missing postcode
+		return
+	}
+
+	if wantedResponse != "json" {
+		redirect := fmt.Sprintf("https://maps.google.com/?q=%f,%f", b.Latitude, b.Longitude)
+		http.Redirect(w, r, redirect, http.StatusSeeOther)
+	} else {
+		server.writeJSON(w, b)
+	}
+}
+
+func (server *Server) writeJSON(w http.ResponseWriter, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	enc := json.NewEncoder(w)
+	_ = enc.Encode(data)
+}
+
+type Buildings []Building
+
+type Building struct {
 	Latitude  float64 `json:"LATITUDE,string"`
 	Longitude float64 `json:"LONGITUDE,string"`
 	Postcode  string  `json:"POSTAL"`
 }
 
-type buildings []building
-
-var postcodes buildings
-var views = template.Must(template.ParseGlob("templates/*.html"))
-
-func main() {
-
-	var err error
-	postcodes, err = loadBuildingJSON("buildings.json")
+// curl -O https://raw.githubusercontent.com/xkjyeah/singapore-postal-codes/master/buildings.json
+func BuildingsFromFile(path string) (Buildings, error) {
+	content, err := ioutil.ReadFile(path)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("failed read %q: %w", path, err)
 	}
-	log.Printf("Loaded %d buildings", len(postcodes))
 
-	app := mux.NewRouter()
-	app.HandleFunc("/", handleIndex)
+	var buildings Buildings
+	err = json.Unmarshal(content, &buildings)
+	if err != nil {
+		return nil, fmt.Errorf("failed parse: %w", err)
+	}
 
-	addr := ":" + os.Getenv("PORT")
-	log.Fatal(http.ListenAndServe(addr, app))
+	return buildings, nil
 }
 
-func handleIndex(w http.ResponseWriter, r *http.Request) {
-	postcode := r.URL.Query().Get("postcode")
-	if len(postcode) != 6 {
-		views.ExecuteTemplate(w, "index.html", nil)
-		return
-	}
-	wantedResponse := r.URL.Query().Get("r")
-	log.Println("Postcode", postcode, "Wanted Response", wantedResponse)
-
-	b := postcodes.getLocation(postcode)
-
-	if wantedResponse != "json" {
-		http.Redirect(w, r,
-			fmt.Sprintf("https://maps.google.com/?q=%f,%f", b.Latitude, b.Longitude), http.StatusSeeOther)
-	} else {
-		response.JSON(w, b)
-	}
-}
-
-func (Buildings buildings) getLocation(postcode string) (b building) {
-	for _, b = range Buildings {
-		if postcode == b.Postcode {
-			return b
+func (buildings Buildings) Lookup(postcode string) (Building, bool) {
+	for _, building := range buildings {
+		if postcode == building.Postcode {
+			return building, true
 		}
 	}
-	return
-}
 
-// curl -O https://raw.githubusercontent.com/xkjyeah/singapore-postal-codes/master/buildings.json
-func loadBuildingJSON(jsonfile string) (bs buildings, err error) {
-	content, err := ioutil.ReadFile(jsonfile)
-	if err != nil {
-		return
-	}
-	err = json.Unmarshal(content, &bs)
-	if err != nil {
-		return
-	}
-	return
+	return Building{}, false
 }
