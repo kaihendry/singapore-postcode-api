@@ -1,0 +1,33 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "Place": "KECK SENG TOWER",
+        "Name": "Office"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          1.28022346789656,
+          103.849001802657
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "Place": "BETHANY CHURCH SINGAPORE",
+        "Name": "Bar"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          1.30694456840808,
+          103.82933959624701
+        ]
+      }
+    }
+  ]
+}

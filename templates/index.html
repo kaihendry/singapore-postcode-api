@@ -26,6 +26,23 @@
 		</p>
 		<input type="submit">
 		</form>
+
+		<pre><code>#!/bin/bash
+cat &lt;&lt; EOF |
+[
+{ &quot;name&quot;: &quot;Office&quot;, &quot;postcode&quot;: &quot;069535&quot; },
+{ &quot;name&quot;: &quot;Bar&quot;, &quot;postcode&quot;: &quot;238875&quot; }
+]
+EOF
+jq -r '.[]|.name,.postcode' |
+while read -r name
+read -r postcode; do
+coords=$(curl -s &quot;https://postcode.dabase.com/?postcode=$postcode&quot; |
+    jq --arg name $name '.properties.Name = $name')
+echo $coords
+done | jq -s '{ &quot;type&quot;: &quot;FeatureCollection&quot;, &quot;features&quot;: . }'
+</code></pre>
+
 	<p><a href="https://github.com/kaihendry/singapore-postcode">MIT Source code</a></p>
 	</body>
 	</html>

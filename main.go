@@ -73,11 +73,39 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if wantedResponse != "json" {
+	if wantedResponse == "gmap" {
 		redirect := fmt.Sprintf("https://maps.google.com/?q=%f,%f", b.Latitude, b.Longitude)
 		http.Redirect(w, r, redirect, http.StatusSeeOther)
 	} else {
-		server.writeJSON(w, b)
+		geojson := geoPoint(b)
+		server.writeJSON(w, geojson)
+	}
+}
+
+func geoPoint(data Building) (geo interface{}) {
+	return struct {
+		Type       string "json:\"type\""
+		Properties struct {
+			Place string "json:\"Place\""
+		} "json:\"properties\""
+		Geometry struct {
+			Type        string    "json:\"type\""
+			Coordinates []float64 "json:\"coordinates\""
+		} "json:\"geometry\""
+	}{
+		Type: "Feature",
+		Properties: struct {
+			Place string "json:\"Place\""
+		}{
+			Place: data.Building,
+		},
+		Geometry: struct {
+			Type        string    "json:\"type\""
+			Coordinates []float64 "json:\"coordinates\""
+		}{
+			Type:        "Point",
+			Coordinates: []float64{data.Latitude, data.Longitude},
+		},
 	}
 }
 
@@ -92,6 +120,7 @@ type Buildings []Building
 type Building struct {
 	Latitude  float64 `json:"LATITUDE,string"`
 	Longitude float64 `json:"LONGITUDE,string"`
+	Building  string  `json:"BUILDING"`
 	Postcode  string  `json:"POSTAL"`
 }
 
