@@ -104,7 +104,7 @@ func geoPoint(data Building) (geo interface{}) {
 			Coordinates []float64 "json:\"coordinates\""
 		}{
 			Type:        "Point",
-			Coordinates: []float64{data.Latitude, data.Longitude},
+			Coordinates: []float64{data.Longitude, data.Latitude},
 		},
 	}
 }
