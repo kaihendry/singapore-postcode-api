@@ -1,4 +1,4 @@
-<script src="https://embed.github.com/view/geojson/kaihendry/singapore-postcode/master/eg.geojson"></script>
+# Singapore postcode geocoder
 
 	#!/bin/bash
 	cat << EOF |
@@ -13,3 +13,5 @@
 	curl -s "https://postcode.dabase.com/?postcode=$postcode" |
 		jq --arg name $name '.properties.Name = $name'
 	done | jq -s '{ "type": "FeatureCollection", "features": . }'
+
+Example [GeoJSON output](https://docs.github.com/en/free-pro-team@latest/github/managing-files-in-a-repository/mapping-geojson-files-on-github) https://github.com/kaihendry/singapore-postcode/blob/master/eg.geojson
