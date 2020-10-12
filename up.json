@@ -1,6 +1,6 @@
 {
   "name": "postcode",
-  "profile": "mine",
+  "profile": "singapore-postcode-github-workflow",
   "regions": [
     "ap-southeast-1"
   ],

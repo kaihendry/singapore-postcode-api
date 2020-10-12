@@ -50,8 +50,7 @@ func NewServer(logger Log, templatesPath, postcodesPath string) (*Server, error)
 	logger.Printf("Loaded %d buildings", len(postcodes))
 
 	return &Server{
-		log: logger,
-
+		log:       logger,
 		views:     views,
 		postcodes: postcodes,
 	}, nil
@@ -67,7 +66,7 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	wantedResponse := r.URL.Query().Get("r")
 	server.log.Println("Postcode", postcode, "Wanted Response", wantedResponse)
 
-	b, ok := server.postcodes.Lookup(postcode)
+	b, ok := server.postcodes[postcode]
 	if !ok {
 		// handle missing postcode
 		return
@@ -115,7 +114,7 @@ func (server *Server) writeJSON(w http.ResponseWriter, data interface{}) {
 	_ = enc.Encode(data)
 }
 
-type Buildings []Building
+type Buildings map[string]Building
 
 type Building struct {
 	Latitude  float64 `json:"LATITUDE,string"`
@@ -131,21 +130,17 @@ func BuildingsFromFile(path string) (Buildings, error) {
 		return nil, fmt.Errorf("failed read %q: %w", path, err)
 	}
 
-	var buildings Buildings
+	var buildings []Building
 	err = json.Unmarshal(content, &buildings)
 	if err != nil {
 		return nil, fmt.Errorf("failed parse: %w", err)
 	}
 
-	return buildings, nil
-}
+	buildingmap := make(map[string]Building)
 
-func (buildings Buildings) Lookup(postcode string) (Building, bool) {
-	for _, building := range buildings {
-		if postcode == building.Postcode {
-			return building, true
-		}
+	for _, v := range buildings {
+		buildingmap[v.Postcode] = v
 	}
 
-	return Building{}, false
+	return buildingmap, nil
 }
