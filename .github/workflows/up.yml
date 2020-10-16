@@ -24,7 +24,7 @@ jobs:
       - name: Test
         run: go test -v .
 
-      - name: Check out buildings.kson
+      - name: Check out buildings.json
         uses: actions/checkout@v2
         with:
           repository: xkjyeah/singapore-postal-codes

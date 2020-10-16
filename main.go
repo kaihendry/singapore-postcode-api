@@ -93,24 +93,24 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // rewrite to a GeoJSON geopoint
 func geoPoint(data Building) (geo interface{}) {
 	return struct {
-		Type       string "json:\"type\""
+		Type       string `json:"type"`
 		Properties struct {
-			Place string "json:\"Place\""
-		} "json:\"properties\""
+			Place string `json:"Place"`
+		} `json:"properties"`
 		Geometry struct {
-			Type        string    "json:\"type\""
-			Coordinates []float64 "json:\"coordinates\""
-		} "json:\"geometry\""
+			Type        string    `json:"type"`
+			Coordinates []float64 `json:"coordinates"`
+		} `json:"geometry"`
 	}{
 		Type: "Feature",
 		Properties: struct {
-			Place string "json:\"Place\""
+			Place string `json:"Place"`
 		}{
 			Place: data.Building,
 		},
 		Geometry: struct {
-			Type        string    "json:\"type\""
-			Coordinates []float64 "json:\"coordinates\""
+			Type        string    `json:"type"`
+			Coordinates []float64 `json:"coordinates"`
 		}{
 			Type:        "Point",
 			Coordinates: []float64{data.Longitude, data.Latitude},
@@ -121,11 +121,7 @@ func geoPoint(data Building) (geo interface{}) {
 func (server *Server) writeJSON(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	enc := json.NewEncoder(w)
-	err := enc.Encode(data)
-	if err != nil {
-		server.log.Printf("Error serialising JSON: %v", err)
-		http.Error(w, "Error serialising JSON", http.StatusInternalServerError)
-	}
+	_ = enc.Encode(data)
 }
 
 func BuildingsFromFile(path string) (Buildings, error) {
