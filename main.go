@@ -10,19 +10,27 @@ import (
 	"os"
 )
 
+// Buildings is postcode lookup map
+type Buildings map[string]Building
+
+type Building struct {
+	Latitude  float64 `json:"LATITUDE,string"`
+	Longitude float64 `json:"LONGITUDE,string"`
+	Building  string  `json:"BUILDING"`
+	Postcode  string  `json:"POSTAL"`
+}
+
 func main() {
 	logger := log.New(os.Stderr, "", log.Lshortfile)
 
-	server, err := NewServer(logger, "templates/*.html", "buildings.json")
+	server, err := NewServer(logger, "templates/*.html", "data/buildings.json")
 	if err != nil {
-		logger.Printf("failed to create server: %v", err)
-		os.Exit(1)
+		logger.Fatalf("failed to create server: %v", err)
 	}
 
 	err = http.ListenAndServe(":"+os.Getenv("PORT"), server)
 	if err != nil {
-		logger.Printf("failed to start server: %v", err)
-		os.Exit(1)
+		logger.Fatalf("failed to start server: %v", err)
 	}
 }
 
@@ -68,7 +76,8 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	b, ok := server.postcodes[postcode]
 	if !ok {
-		// handle missing postcode
+		server.log.Printf("Postcode not found: %s", postcode)
+		http.Error(w, "Postcode not found", http.StatusBadRequest)
 		return
 	}
 
@@ -81,6 +90,7 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// rewrite to a GeoJSON geopoint
 func geoPoint(data Building) (geo interface{}) {
 	return struct {
 		Type       string "json:\"type\""
@@ -111,19 +121,13 @@ func geoPoint(data Building) (geo interface{}) {
 func (server *Server) writeJSON(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	enc := json.NewEncoder(w)
-	_ = enc.Encode(data)
+	err := enc.Encode(data)
+	if err != nil {
+		server.log.Printf("Error serialising JSON: %v", err)
+		http.Error(w, "Error serialising JSON", http.StatusInternalServerError)
+	}
 }
 
-type Buildings map[string]Building
-
-type Building struct {
-	Latitude  float64 `json:"LATITUDE,string"`
-	Longitude float64 `json:"LONGITUDE,string"`
-	Building  string  `json:"BUILDING"`
-	Postcode  string  `json:"POSTAL"`
-}
-
-// curl -O https://raw.githubusercontent.com/xkjyeah/singapore-postal-codes/master/buildings.json
 func BuildingsFromFile(path string) (Buildings, error) {
 	content, err := ioutil.ReadFile(path)
 	if err != nil {

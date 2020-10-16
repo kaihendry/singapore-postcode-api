@@ -24,6 +24,12 @@ jobs:
       - name: Test
         run: go test -v .
 
+    - name: Check out buildings.kson
+      uses: actions/checkout@v2
+      with:
+        repository: xkjyeah/singapore-postal-codes
+        path: data
+
       - name: Deploy
         uses: apex/actions/up@v0.5.1
         env:
