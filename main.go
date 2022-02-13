@@ -8,6 +8,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/apex/gateway/v2"
 )
 
 // Buildings is postcode lookup map
@@ -28,10 +30,13 @@ func main() {
 		logger.Fatalf("failed to create server: %v", err)
 	}
 
-	err = http.ListenAndServe(":"+os.Getenv("PORT"), server)
-	if err != nil {
-		logger.Fatalf("failed to start server: %v", err)
+	if _, ok := os.LookupEnv("AWS_LAMBDA_FUNCTION_NAME"); ok {
+		err = gateway.ListenAndServe("", server)
+	} else {
+		err = http.ListenAndServe(fmt.Sprintf(":%s", os.Getenv("PORT")), server)
 	}
+	log.Fatal("error listening")
+
 }
 
 type Log interface {
@@ -65,8 +70,10 @@ func NewServer(logger Log, templatesPath, postcodesPath string) (*Server, error)
 }
 
 func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	server.log.Printf("%s %s", r.Method, r.URL.Path)
 	postcode := r.URL.Query().Get("postcode")
 	if len(postcode) != 6 {
+		w.Header().Set("Content-Type", "text/html")
 		server.views.ExecuteTemplate(w, "index.html", nil)
 		return
 	}
